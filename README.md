@@ -609,6 +609,7 @@ Fetch glucose reading directly from the Dexcom Share service, uses these extende
   * Requires `DEVICESTATUS_ADVANCED="true"` to be set
   * `PUMP_ENABLE_ALERTS` (`false`) - Set to `true` to enable notifications for Pump battery and reservoir.
   * `PUMP_WARN_ON_SUSPEND` (`false`) - Set to `true` to get an alarm when the pump is suspended.
+  * `PUMP_SUSPEND_WARN_MINS` (`30`) - Minutes the pump can remain suspended before a suspend alarm is sent. Set to `0` to disable.
   * `PUMP_FIELDS` (`reservoir battery`) - The fields to display by default.  Any of the following fields: `reservoir`, `battery`, `clock`, `status`, and `device`
   * `PUMP_RETRO_FIELDS` (`reservoir battery clock`) - The fields to display in retro mode. Any of the above fields.
   * `PUMP_WARN_CLOCK` (`30`) - The number of minutes ago that needs to be exceed before an alert is triggered.

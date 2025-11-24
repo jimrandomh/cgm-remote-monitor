@@ -92,6 +92,37 @@ var statuses2 = [{
   }
 }];
 
+function buildSuspendedStatuses(now) {
+  var device = 'openaps://suspendtest';
+  return [
+    createPumpStatus(device, now.clone().subtract(60, 'minutes'), false)
+    , createPumpStatus(device, now.clone().subtract(40, 'minutes'), true)
+    , createPumpStatus(device, now.clone().subtract(20, 'minutes'), true)
+    , createPumpStatus(device, now.clone(), true)
+  ];
+}
+
+function createPumpStatus(device, timestamp, suspended) {
+  return {
+    created_at: timestamp.toISOString()
+    , device: device
+    , pump: {
+      battery: {
+        status: 'normal',
+        voltage: 1.52
+      },
+      status: {
+        status: suspended ? 'suspended' : 'normal',
+        bolusing: false,
+        suspended: suspended
+      },
+      reservoir: 80,
+      clock: timestamp.toISOString()
+    }
+    , mills: timestamp.valueOf()
+  };
+}
+
 var now = moment(statuses[1].created_at);
 
 _.forEach(statuses, function updateMills (status) {
@@ -379,6 +410,74 @@ describe('pump', function ( ) {
 
     var highest = ctx.notifications.findHighestAlarm('Pump');
     should.not.exist(highest);
+    done();
+  });
+
+  it('generate a suspend alert when pump is suspended beyond configured duration', function (done) {
+    var ctx = {
+      settings: {
+        units: 'mg/dl'
+      }
+      , notifications: require('../lib/notifications')(env, top_ctx)
+      , language: language
+      , levels: levels
+    };
+
+    ctx.notifications.initRequests();
+
+    var suspendNow = moment('2015-12-05T20:00:00.000Z');
+    var suspendedStatuses = buildSuspendedStatuses(suspendNow);
+
+    var sbx = sandbox.clientInit(ctx, suspendNow.valueOf(), {
+      devicestatus: suspendedStatuses
+    });
+
+    sbx.extendedSettings = {
+      enableAlerts: true,
+      suspendWarnMins: 30
+    };
+
+    pump.setProperties(sbx);
+    pump.checkNotifications(sbx);
+
+    var suspendAlarm = ctx.notifications.findHighestAlarm('Pump Suspend');
+    should.exist(suspendAlarm);
+    suspendAlarm.level.should.equal(levels.WARN);
+    suspendAlarm.title.should.match(/Pump Suspended/);
+    suspendAlarm.message.should.match(/suspended since/);
+    done();
+  });
+
+  it('not generate a suspend alert when pump data is stale', function (done) {
+    var ctx = {
+      settings: {
+        units: 'mg/dl'
+      }
+      , notifications: require('../lib/notifications')(env, top_ctx)
+      , language: language
+      , levels: levels
+    };
+
+    ctx.notifications.initRequests();
+
+    var suspendNow = moment('2015-12-05T20:00:00.000Z');
+    var suspendedStatuses = buildSuspendedStatuses(suspendNow);
+
+    var staleTime = suspendNow.clone().add(2, 'hours');
+    var sbx = sandbox.clientInit(ctx, staleTime.valueOf(), {
+      devicestatus: suspendedStatuses
+    });
+
+    sbx.extendedSettings = {
+      enableAlerts: true,
+      suspendWarnMins: 30
+    };
+
+    pump.setProperties(sbx);
+    pump.checkNotifications(sbx);
+
+    var suspendAlarm = ctx.notifications.findHighestAlarm('Pump Suspend');
+    should.not.exist(suspendAlarm);
     done();
   });
 
